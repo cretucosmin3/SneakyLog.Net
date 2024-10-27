@@ -1,0 +1,36 @@
+[main x] {} Testing k6 run stress_test.js
+
+          /\      |‾‾| /‾‾/   /‾‾/   
+     /\  /  \     |  |/  /   /  /    
+    /  \/    \    |     (   /   ‾‾\  
+   /          \   |  |\  \ |  (‾)  | 
+  / __________ \  |__| \__\ \_____/ .io
+
+     execution: local
+        script: stress_test.js
+        output: -
+
+     scenarios: (100.00%) 1 scenario, 5 max VUs, 35s max duration (incl. graceful stop):
+              * default: 5 looping VUs for 5s (gracefulStop: 30s)
+
+
+     data_received..................: 32 MB  6.5 MB/s
+     data_sent......................: 8.1 MB 1.6 MB/s
+     http_req_blocked...............: avg=5µs      min=2.79µs   med=4.75µs   max=377.28µs p(90)=5.65µs   p(95)=5.79µs  
+     http_req_connecting............: avg=7ns      min=0s       med=0s       max=147.08µs p(90)=0s       p(95)=0s      
+     http_req_duration..............: avg=243.69µs min=141.22µs med=218.6µs  max=3.81ms   p(90)=293.47µs p(95)=353.59µs
+       { expected_response:true }...: avg=243.69µs min=141.22µs med=218.6µs  max=3.81ms   p(90)=293.47µs p(95)=353.59µs
+     http_req_failed................: 0.00%  ✓ 0            ✗ 83153
+     http_req_receiving.............: avg=31.73µs  min=12.22µs  med=27.3µs   max=1.87ms   p(90)=41.41µs  p(95)=46.72µs 
+     http_req_sending...............: avg=9.33µs   min=4.19µs   med=8.52µs   max=560.33µs p(90)=11.8µs   p(95)=13.27µs 
+     http_req_tls_handshaking.......: avg=0s       min=0s       med=0s       max=0s       p(90)=0s       p(95)=0s      
+     http_req_waiting...............: avg=202.62µs min=105.39µs med=180.26µs max=3.77ms   p(90)=250.8µs  p(95)=299.76µs
+     http_reqs......................: 83153  16629.579958/s
+     iteration_duration.............: avg=286.85µs min=175.02µs med=260.57µs max=3.84ms   p(90)=340.68µs p(95)=409.27µs
+     iterations.....................: 83153  16629.579958/s
+     vus............................: 5      min=5          max=5  
+     vus_max........................: 5      min=5          max=5  
+
+
+running (05.0s), 0/5 VUs, 83153 complete and 0 interrupted iterations
+default ✓ [======================================] 5 VUs  5s
