@@ -26,8 +26,8 @@ The format of the error trace:
     - Method B(data) (15ms)
     - Method C(data) (15ms)
         - Method C1(data) (15.00ms)
-        - Method C2(data) (16.02ms)
-        - ...
-        - Method C2 68x more times (15ms avg)
+        - Method C2 called 68x times (15ms avg)
         - Method C2(data):34 ERROR: Error message
 ```
+
+---
