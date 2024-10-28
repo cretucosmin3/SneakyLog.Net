@@ -1,6 +1,6 @@
 # SneakyLog.Net
 
-SneakyLog is going to be a library that does logging for you in your automagically.
+SneakyLog is going to be a library that does logging for you automagically.
 
 ### The concept
 In some cases logging is tideous to maintain, write. In other cases logging is done too much and it can have an impact on costs or performance.
