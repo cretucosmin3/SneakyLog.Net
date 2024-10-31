@@ -1,15 +1,18 @@
 using System.Linq;
+using System.Threading.Tasks;
 
 public interface ICarsRepository
 {
-    public bool TryFindCars(int personId, out Car[]? cars);
+    public Task<(bool, Car[])> TryFindCars(int personId);
 }
 
 public class CarsRepository : ICarsRepository
 {
-    public bool TryFindCars(int personId, out Car[]? cars)
+    public async Task<(bool, Car[])> TryFindCars(int personId)
     {
-        cars = TestingData.Cars.Where(car => car.PersonId.Equals(personId)).ToArray();
-        return cars.Length > 0;
+        await Task.Delay(5);
+        
+        var cars = TestingData.Cars.Where(car => car.PersonId.Equals(personId)).ToArray();
+        return (cars.Length > 0, cars);
     }
 }

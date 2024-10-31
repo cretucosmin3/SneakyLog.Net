@@ -29,12 +29,12 @@ public class SneakyMiddleware
             await _next.Invoke(context);
 
             string trace = ProxyLogContext.GetTrace();
-            // _logger.LogInformation($"Endpoint finished with trace: {trace}");
+            _logger.LogDebug($"Endpoint finished with trace: {trace}");
         }
         catch (Exception)
         {
             string trace = ProxyLogContext.GetTrace();
-            _logger.LogInformation($"Endpoint errored with trace: {trace}");
+            _logger.LogError($"Endpoint errored with trace: {trace}");
 
             throw;
         }

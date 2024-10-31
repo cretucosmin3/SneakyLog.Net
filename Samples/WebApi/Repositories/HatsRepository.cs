@@ -1,15 +1,19 @@
 using System.Linq;
+using System.Threading.Tasks;
 
 public interface IHatsRepository
 {
-    public bool TryFindHats(int personId, out Hat[]? hats);
+    public Task<(bool,Hat[])> TryFindHats(int personId);
 }
 
 public class HatsRepository : IHatsRepository
 {
-    public bool TryFindHats(int personId, out Hat[]? hats)
+    public async Task<(bool, Hat[])> TryFindHats(int personId)
     {
-        hats = TestingData.Hats.Where(hat => hat.PersonId.Equals(personId)).ToArray();
-        return hats.Length > 0;
+        await Task.Delay(5);
+
+        var hats = TestingData.Hats.Where(hat => hat.PersonId.Equals(personId)).ToArray();
+
+        return (hats.Length > 0, hats);
     }
 }
