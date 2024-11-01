@@ -16,7 +16,7 @@ public class TestingController : ControllerBase
     }
 
     [HttpGet]
-    public async Task<IActionResult> GetPerson()
+    public async Task<IActionResult> TreeTesting()
     {
         _aService.ACall1().Wait();
         _bService.BCall1();

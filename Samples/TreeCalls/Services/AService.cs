@@ -23,7 +23,7 @@ public class AService : IAService
 
     public async Task<DummyResponse> ACall1()
     {
-        await Task.Delay(5);
+        // await Task.Delay(5);
 
         return new DummyResponse()
         {
@@ -34,7 +34,7 @@ public class AService : IAService
 
     public async Task ACall2()
     {
-        await Task.Delay(5);
+        // await Task.Delay(5);
 
         _a1Service.A1Call1();
     }

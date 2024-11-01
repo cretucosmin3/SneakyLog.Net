@@ -32,7 +32,7 @@ public class MethodCall
     }
 }
 
-public static class ProxyLogContext
+public static class SneakyLogContext
 {
     private class AsyncContext
     {
@@ -40,13 +40,12 @@ public static class ProxyLogContext
         public string? RequestId { get; set; }
     }
 
-    // Fix: Properly initialize AsyncLocal with a value factory delegate
     private static readonly AsyncLocal<AsyncContext> Context = new(valueChangedHandler: null);
     private static readonly ConcurrentDictionary<string, MethodCall> ActiveCalls = new();
     private static readonly ConcurrentDictionary<string, List<MethodCall>> RequestCalls = new();
 
     // Helper property that creates context if it doesn't exist
-    private static AsyncContext CurrentContext 
+    private static AsyncContext CurrentContext
     {
         get
         {
@@ -107,37 +106,86 @@ public static class ProxyLogContext
         CurrentContext.CurrentMethodId = parentId;
     }
 
+    private static void CleanupMethodCallTree(MethodCall call)
+    {
+        // Clean up children first
+        foreach (var child in call.Children)
+        {
+            CleanupMethodCallTree(child);
+        }
+
+        // Remove this call from ActiveCalls
+        ActiveCalls.TryRemove(call.Id, out _);
+    }
+
     public static string GetTrace()
     {
         var requestId = CurrentContext.RequestId;
+
         if (requestId == null || !RequestCalls.TryGetValue(requestId, out var calls))
             return "No trace";
 
         var sb = new StringBuilder();
         lock (calls)
         {
-            foreach (var call in calls.OrderBy(c => c.StartTime))
+            // Get the first (root) call which should be our controller action
+            var rootCalls = calls.OrderBy(c => c.StartTime).ToList();
+            if (rootCalls.Count > 0)
             {
-                BuildTraceString(call, sb, 0);
+                var rootCall = rootCalls[0];
+                BuildTraceString(rootCall, sb, 0);
+
+                // Clean up this call and all its children from ActiveCalls
+                CleanupMethodCallTree(rootCall);
             }
         }
 
-        // Cleanup
+        // Cleanup the request
         RequestCalls.TryRemove(requestId, out _);
+
+        // Clear the context
+        Context.Value = null;
 
         return sb.ToString();
     }
 
     public static void EndTrace()
     {
-        RequestCalls.TryRemove(CurrentContext.RequestId, out _);
+        var requestId = CurrentContext.RequestId;
+
+        if (requestId != null)
+        {
+            if (RequestCalls.TryGetValue(requestId, out var calls))
+            {
+                lock (calls)
+                {
+                    foreach (var call in calls)
+                    {
+                        CleanupMethodCallTree(call);
+                    }
+                }
+            }
+            RequestCalls.TryRemove(requestId, out _);
+        }
+
+        // Clear the context
+        Context.Value = null;
     }
 
     private static void BuildTraceString(MethodCall call, StringBuilder sb, int depth)
     {
-        sb.AppendLine();
-        sb.Append(new string(' ', depth * 2));
-        sb.Append("- ");
+        if (depth == 0)
+        {
+            sb.AppendLine();
+            sb.Append("- ");
+        }
+        else
+        {
+            sb.AppendLine();
+            sb.Append(new string(' ', depth * 2));
+            sb.Append("- ");
+        }
+
         sb.Append(call.MethodName);
 
         if (call.EndTime.HasValue)
@@ -148,15 +196,21 @@ public static class ProxyLogContext
 
         if (call.Exception != null)
         {
-            sb.Append($" ERROR: {call.Exception.GetType().Name}: {call.Exception.Message}");
+            // Use consistent error format
+            sb.Append($" ❌ ERR: {call.Exception.GetType().Name}: {call.Exception.Message}");
         }
         else if (call.Result != null)
         {
             sb.Append($" => {call.Result}");
         }
 
-        // Process children (in a thread-safe way)
-        var children = call.Children.OrderBy(c => c.StartTime).ToList();
+        // Process children with proper locking
+        List<MethodCall> children;
+        lock (call.Children)
+        {
+            children = call.Children.OrderBy(c => c.StartTime).ToList();
+        }
+
         foreach (var child in children)
         {
             BuildTraceString(child, sb, depth + 1);
@@ -170,6 +224,7 @@ public static class ProxyLogContext
         private readonly string? _requestId;
         private readonly Action _onDispose;
         private bool _disposed;
+        private readonly object _lock = new object();
 
         public MethodTracer(string methodId, string? parentId, string? requestId, Action onDispose)
         {
@@ -181,56 +236,65 @@ public static class ProxyLogContext
 
         public void SetResult(string? result)
         {
-            // Restore context before setting result
-            Context.Value = new AsyncContext
+            lock (_lock)
             {
-                CurrentMethodId = _methodId,
-                RequestId = _requestId
-            };
+                // Restore context before setting result
+                Context.Value = new AsyncContext
+                {
+                    CurrentMethodId = _methodId,
+                    RequestId = _requestId
+                };
 
-            if (ActiveCalls.TryGetValue(_methodId, out var call))
-            {
-                call.Complete(result);
+                if (ActiveCalls.TryGetValue(_methodId, out var call))
+                {
+                    call.Complete(result);
+                }
+
+                RestoreContext(_parentId);
             }
-
-            RestoreContext(_parentId);
         }
 
         public void SetException(Exception ex)
         {
-            // Restore context before setting exception
-            Context.Value = new AsyncContext
+            lock (_lock)
             {
-                CurrentMethodId = _methodId,
-                RequestId = _requestId
-            };
+                // Restore context before setting exception
+                Context.Value = new AsyncContext
+                {
+                    CurrentMethodId = _methodId,
+                    RequestId = _requestId
+                };
 
-            if (ActiveCalls.TryGetValue(_methodId, out var call))
-            {
-                call.Complete(exception: ex);
+                if (ActiveCalls.TryGetValue(_methodId, out var call))
+                {
+                    call.Complete(exception: ex);
+                }
+
+                RestoreContext(_parentId);
             }
-
-            RestoreContext(_parentId);
         }
 
         public void Dispose()
         {
             if (_disposed) return;
 
-            // Restore context before completing
-            Context.Value = new AsyncContext
+            lock (_lock)
             {
-                CurrentMethodId = _methodId,
-                RequestId = _requestId
-            };
+                // Restore context before completing
+                Context.Value = new AsyncContext
+                {
+                    CurrentMethodId = _methodId,
+                    RequestId = _requestId
+                };
 
-            if (ActiveCalls.TryGetValue(_methodId, out var call))
-            {
-                call.Complete();
+                if (ActiveCalls.TryGetValue(_methodId, out var call))
+                {
+                    call.Complete();
+                }
+
+                _onDispose();
+                _disposed = true;
             }
-
-            _onDispose();
-            _disposed = true;
         }
     }
 }
