@@ -27,7 +27,9 @@ public class B1Service : IB1Service
 
     public void B1Call2()
     {
-        _b2Service.B2Call2().Wait();
-        _b3Service.B3Call2().Wait();
+        for (int i = 0; i < 500; i++)
+        {
+            _b3Service.B3Call2().Wait();
+        }
     }
 }

@@ -128,6 +128,11 @@ public static class ProxyLogContext
         return sb.ToString();
     }
 
+    public static void EndTrace()
+    {
+        RequestCalls.TryRemove(CurrentContext.RequestId, out _);
+    }
+
     private static void BuildTraceString(MethodCall call, StringBuilder sb, int depth)
     {
         sb.AppendLine();

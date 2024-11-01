@@ -23,7 +23,8 @@ public class BService : IBService
 
     public async Task BCall2()
     {
-        await Task.Delay(5);
+        await Task.Delay(1);
+
         _b1Service.B1Call2();
     }
 }

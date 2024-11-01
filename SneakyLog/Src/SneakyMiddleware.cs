@@ -27,9 +27,6 @@ public class SneakyMiddleware
         try
         {
             await _next.Invoke(context);
-
-            string trace = ProxyLogContext.GetTrace();
-            _logger.LogDebug($"Endpoint finished with trace: {trace}");
         }
         catch (Exception)
         {
@@ -38,5 +35,7 @@ public class SneakyMiddleware
 
             throw;
         }
+
+        ProxyLogContext.EndTrace();
     }
 }

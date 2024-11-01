@@ -9,8 +9,6 @@ public class SneakyInterceptor : IInterceptor
         var methodName = $"{invocation.TargetType.Name}.{invocation.Method.Name}";
         using var trace = ProxyLogContext.TraceMethod(methodName);
 
-        Console.WriteLine("Intercepting....");
-
         try
         {
             invocation.Proceed();

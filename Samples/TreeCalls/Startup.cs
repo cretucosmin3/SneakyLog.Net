@@ -15,6 +15,7 @@ public class Startup
         services.AddSneakyLog();
 
         AddLogicalServices(services);
+        // AddLogicalServicesNormal(services);
     }
 
     public void AddLogicalServices(IServiceCollection services)
@@ -25,6 +26,16 @@ public class Startup
         services.AddProxiedScoped(typeof(IB1Service), typeof(B1Service));
         services.AddProxiedScoped(typeof(IB2Service), typeof(B2Service));
         services.AddProxiedScoped(typeof(IB3Service), typeof(B3Service));
+    }
+
+    public void AddLogicalServicesNormal(IServiceCollection services)
+    {
+        services.AddScoped(typeof(IAService), typeof(AService));
+        services.AddScoped(typeof(IA1Service), typeof(A1Service));
+        services.AddScoped(typeof(IBService), typeof(BService));
+        services.AddScoped(typeof(IB1Service), typeof(B1Service));
+        services.AddScoped(typeof(IB2Service), typeof(B2Service));
+        services.AddScoped(typeof(IB3Service), typeof(B3Service));
     }
 
     public void Configure(IApplicationBuilder app, IWebHostEnvironment env, ILogger<Startup> logger)

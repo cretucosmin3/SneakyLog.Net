@@ -10,11 +10,11 @@ public class B3Service : IB3Service
 {
     public async Task B3Call1()
     {
-        await Task.Delay(5);
+        await Task.Delay(1);
     }
 
     public async Task B3Call2()
     {
-        await Task.Delay(5);
+        
     }
 }
