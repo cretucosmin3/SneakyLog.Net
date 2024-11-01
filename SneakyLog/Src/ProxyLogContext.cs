@@ -32,7 +32,7 @@ public class MethodCall
     }
 }
 
-public static class ProxyLogContext
+public static class SneakyLogContext
 {
     private class AsyncContext
     {
@@ -176,7 +176,6 @@ public static class ProxyLogContext
     {
         if (depth == 0)
         {
-            // Don't add a newline before the root call
             sb.AppendLine();
             sb.Append("- ");
         }
@@ -197,6 +196,7 @@ public static class ProxyLogContext
 
         if (call.Exception != null)
         {
+            // Use consistent error format
             sb.Append($" ❌ ERR: {call.Exception.GetType().Name}: {call.Exception.Message}");
         }
         else if (call.Result != null)
@@ -204,8 +204,12 @@ public static class ProxyLogContext
             sb.Append($" => {call.Result}");
         }
 
-        // Process children (in a thread-safe way)
-        var children = call.Children.OrderBy(c => c.StartTime).ToList();
+        // Process children with proper locking
+        List<MethodCall> children;
+        lock (call.Children)
+        {
+            children = call.Children.OrderBy(c => c.StartTime).ToList();
+        }
 
         foreach (var child in children)
         {
@@ -220,6 +224,7 @@ public static class ProxyLogContext
         private readonly string? _requestId;
         private readonly Action _onDispose;
         private bool _disposed;
+        private readonly object _lock = new object();
 
         public MethodTracer(string methodId, string? parentId, string? requestId, Action onDispose)
         {
@@ -231,63 +236,65 @@ public static class ProxyLogContext
 
         public void SetResult(string? result)
         {
-            // Restore context before setting result
-            Context.Value = new AsyncContext
+            lock (_lock)
             {
-                CurrentMethodId = _methodId,
-                RequestId = _requestId
-            };
+                // Restore context before setting result
+                Context.Value = new AsyncContext
+                {
+                    CurrentMethodId = _methodId,
+                    RequestId = _requestId
+                };
 
-            if (ActiveCalls.TryGetValue(_methodId, out var call))
-            {
-                call.Complete(result);
+                if (ActiveCalls.TryGetValue(_methodId, out var call))
+                {
+                    call.Complete(result);
+                }
+
+                RestoreContext(_parentId);
             }
-
-            RestoreContext(_parentId);
         }
 
         public void SetException(Exception ex)
         {
-            // Restore context before setting exception
-            Context.Value = new AsyncContext
+            lock (_lock)
             {
-                CurrentMethodId = _methodId,
-                RequestId = _requestId
-            };
+                // Restore context before setting exception
+                Context.Value = new AsyncContext
+                {
+                    CurrentMethodId = _methodId,
+                    RequestId = _requestId
+                };
 
-            if (ActiveCalls.TryGetValue(_methodId, out var call))
-            {
-                call.Complete(exception: ex);
+                if (ActiveCalls.TryGetValue(_methodId, out var call))
+                {
+                    call.Complete(exception: ex);
+                }
+
+                RestoreContext(_parentId);
             }
-
-            RestoreContext(_parentId);
         }
 
         public void Dispose()
         {
             if (_disposed) return;
 
-            // Restore context before completing
-            Context.Value = new AsyncContext
+            lock (_lock)
             {
-                CurrentMethodId = _methodId,
-                RequestId = _requestId
-            };
-
-            if (ActiveCalls.TryGetValue(_methodId, out var call))
-            {
-                call.Complete();
-
-                // Clean up this method call if it's not part of a larger tree
-                // (if it has no parent or children)
-                if (string.IsNullOrEmpty(call.ParentId) && call.Children.Count == 0)
+                // Restore context before completing
+                Context.Value = new AsyncContext
                 {
-                    ActiveCalls.TryRemove(_methodId, out _);
-                }
-            }
+                    CurrentMethodId = _methodId,
+                    RequestId = _requestId
+                };
 
-            _onDispose();
-            _disposed = true;
+                if (ActiveCalls.TryGetValue(_methodId, out var call))
+                {
+                    call.Complete();
+                }
+
+                _onDispose();
+                _disposed = true;
+            }
         }
     }
 }

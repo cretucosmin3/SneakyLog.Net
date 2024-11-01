@@ -21,35 +21,35 @@ public class SneakyMiddleware
     {
         context.Request.Headers.TryGetValue("X-Request-Id", out var correlationIds);
         string correlationId = correlationIds.FirstOrDefault() ?? Guid.NewGuid().ToString();
-        ProxyLogContext.SetRequestIdentifier(correlationId);
+        SneakyLogContext.SetRequestIdentifier(correlationId);
 
         // Get the endpoint for better method naming
         var endpoint = context.GetEndpoint();
         var controllerActionDescriptor = endpoint?.Metadata.GetMetadata<ControllerActionDescriptor>();
         
         string methodName = "Unknown Endpoint";
+
         if (controllerActionDescriptor != null)
         {
             methodName = $"{controllerActionDescriptor.ControllerName}Controller.{controllerActionDescriptor.ActionName}";
         }
 
-        using var trace = ProxyLogContext.TraceMethod(methodName);
+        using var trace = SneakyLogContext.TraceMethod(methodName);
         
         try
         {
             await _next.Invoke(context);
-            
-            // Use cached logging level check
+
             if (_isInformationEnabled)
             {
-                string traceOutput = ProxyLogContext.GetTrace();
+                string traceOutput = SneakyLogContext.GetTrace();
                 _logger.LogInformation($"Request completed with trace: {traceOutput}");
             }
         }
         catch (Exception ex)
         {
             trace.SetException(ex);
-            string traceOutput = ProxyLogContext.GetTrace();
+            string traceOutput = SneakyLogContext.GetTrace();
             _logger.LogError($"Endpoint errored with trace: {traceOutput}");
             throw;
         }
@@ -57,7 +57,7 @@ public class SneakyMiddleware
         {
             if (!context.RequestAborted.IsCancellationRequested)
             {
-                ProxyLogContext.EndTrace();
+                SneakyLogContext.EndTrace();
             }
         }
     }
