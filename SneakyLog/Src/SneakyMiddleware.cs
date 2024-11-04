@@ -43,14 +43,14 @@ public class SneakyMiddleware
             if (_isInformationEnabled)
             {
                 string traceOutput = SneakyLogContext.GetTrace();
-                _logger.LogInformation($"Request completed with trace: {traceOutput}");
+                _logger.LogDebug("Request completed with trace: {traceOutput}", traceOutput);
             }
         }
         catch (Exception ex)
         {
             trace.SetException(ex);
             string traceOutput = SneakyLogContext.GetTrace();
-            _logger.LogError($"Endpoint errored with trace: {traceOutput}");
+            _logger.LogError("Endpoint errored with trace: {TraceOutput}", traceOutput);
             throw;
         }
         finally

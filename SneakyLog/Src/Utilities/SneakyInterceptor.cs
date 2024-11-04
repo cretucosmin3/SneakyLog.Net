@@ -28,6 +28,8 @@ public class SneakyInterceptor : IInterceptor
             // Unwrap aggregate exceptions
             var innerException = ex is AggregateException aggEx ? aggEx.InnerExceptions.FirstOrDefault() ?? ex : ex;
             trace.SetException(innerException);
+
+            // HandleThrownException(ex, trace);
             throw;
         }
     }
@@ -40,28 +42,50 @@ public class SneakyInterceptor : IInterceptor
             {
                 if (t.IsFaulted)
                 {
-                    var exception = t.Exception?.InnerExceptions.FirstOrDefault()
-                        ?? t.Exception
-                        ?? new Exception("Unknown async error");
-                    trace.SetException(exception);
+                    HandleThrownException(t.Exception, trace);
                 }
                 else if (t.GetType().IsGenericType)
                 {
-                    try
-                    {
-                        var resultProperty = t.GetType().GetProperty("Result");
-                        var taskResult = resultProperty?.GetValue(t);
-                        var result = taskResult != null ? "{...}" : "null";
-                        trace.SetResult(result);
-                    }
-                    catch (Exception ex)
-                    {
-                        // Handle exceptions that might occur while getting the Result
-                        var actualException = ex.InnerException ?? ex;
-                        trace.SetException(actualException);
-                    }
+                    HandleTaskResult(t, trace);
                 }
             }, TaskScheduler.Current);
+        }
+    }
+
+    private void HandleThrownException(Exception? exception, SneakyLogContext.MethodTracer trace)
+    {
+        if (exception == null)
+        {
+            trace.SetException(new Exception("Unknown async error"));
+            return;
+        }
+
+        if (exception is AggregateException aggEx)
+        {
+            // TODO: trace multiple exceptions thrown at once
+            // foreach (var innerEx in aggEx.InnerExceptions)
+            // {
+            //     trace.AddError(innerEx);
+            // }
+
+            trace.SetException(aggEx.InnerExceptions.First());
+        }
+        else
+        {
+            trace.SetException(exception);
+        }
+    }
+
+    private void HandleTaskResult(Task task, SneakyLogContext.MethodTracer trace)
+    {
+        try
+        {
+            var resultProperty = task.GetType().GetProperty("Result");
+            trace.SetResult(resultProperty?.GetValue(task) != null ? "{...}" : "null");
+        }
+        catch (Exception ex)
+        {
+            HandleThrownException(ex.InnerException ?? ex, trace);
         }
     }
 

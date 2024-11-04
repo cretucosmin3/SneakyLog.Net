@@ -38,7 +38,7 @@ public class PersonService : IPersonService
             }
             catch (System.Exception)
             {
-                string trace = ProxyLogContext.GetTrace();
+                string trace = SneakyLogContext.GetTrace();
                 Console.WriteLine($"Endpoint finished with trace: {trace}");
             }
         }

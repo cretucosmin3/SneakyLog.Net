@@ -276,10 +276,10 @@ public static class SneakyLogContext
 
         public void Dispose()
         {
-            if (_disposed) return;
-
             lock (_lock)
             {
+                if (_disposed) return;
+
                 // Restore context before completing
                 Context.Value = new AsyncContext
                 {

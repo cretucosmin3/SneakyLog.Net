@@ -10,7 +10,7 @@ public static class ServiceCollectionExtensions
     public static void AddSneakyLog(this IServiceCollection services, SneakyLogConfig? config = null)
     {
         // if (config != null)
-        //     ProxyLogContext.SetConfig(config);
+        //     SneakyLogContext.SetConfig(config);
 
         services.AddSingleton(new ProxyGenerator());
         services.AddScoped<SneakyInterceptor>();
