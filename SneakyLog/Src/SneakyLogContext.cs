@@ -118,7 +118,7 @@ public static class SneakyLogContext
         ActiveCalls.TryRemove(call.Id, out _);
     }
 
-    public static string GetTrace()
+    public static string GetTrace(Exception? breakingException = null)
     {
         var requestId = CurrentContext.RequestId;
 
@@ -128,22 +128,16 @@ public static class SneakyLogContext
         var sb = new StringBuilder();
         lock (calls)
         {
-            // Get the first (root) call which should be our controller action
             var rootCalls = calls.OrderBy(c => c.StartTime).ToList();
             if (rootCalls.Count > 0)
             {
                 var rootCall = rootCalls[0];
-                BuildTraceString(rootCall, sb, 0);
-
-                // Clean up this call and all its children from ActiveCalls
+                BuildTraceString(rootCall, sb, 0, breakingException);
                 CleanupMethodCallTree(rootCall);
             }
         }
 
-        // Cleanup the request
         RequestCalls.TryRemove(requestId, out _);
-
-        // Clear the context
         Context.Value = null;
 
         return sb.ToString();
@@ -172,7 +166,7 @@ public static class SneakyLogContext
         Context.Value = null;
     }
 
-    private static void BuildTraceString(MethodCall call, StringBuilder sb, int depth)
+    private static void BuildTraceString(MethodCall call, StringBuilder sb, int depth, Exception? breakingException)
     {
         if (depth == 0)
         {
@@ -197,22 +191,27 @@ public static class SneakyLogContext
         // Only show exceptions for leaf nodes (methods that threw the exception)
         if (call.Exception != null && call.Children.Count == 0)
         {
+            bool isBreakingException = call.Exception == breakingException;
+
+            if (isBreakingException)
+                sb.Append(" 🔴");
+            else //🔴⭕❌🛑
+                sb.Append(" ⭕");
+
             if (call.Exception is AggregateException aggEx && aggEx.InnerExceptions.Count > 1)
             {
-                // Add the main error indicator
-                sb.Append(" ❌ Multiple Errors:");
+                sb.Append(" Multiple thrown exceptions:");
 
-                // Add each error on a new line with proper indentation
                 foreach (var error in aggEx.InnerExceptions)
                 {
                     sb.AppendLine();
                     sb.Append(new string(' ', (depth + 2) * 2));
-                    sb.Append($"→ {GetErrorLineNumber(error)} - {error.GetType().Name}: {error.Message}");
+                    sb.Append($"➡ {GetErrorLineNumber(error)} - {error.GetType().Name}: {error.Message}");
                 }
             }
             else
             {
-                sb.Append($" ❌ {GetErrorLineNumber(call.Exception)} - {call.Exception.GetType().Name}: {call.Exception.Message}");
+                sb.Append($" {GetErrorLineNumber(call.Exception)} - {call.Exception.GetType().Name}: {call.Exception.Message}");
             }
         }
         else if (call.Result != null)
@@ -228,7 +227,7 @@ public static class SneakyLogContext
 
         foreach (var child in children)
         {
-            BuildTraceString(child, sb, depth + 1);
+            BuildTraceString(child, sb, depth + 1, breakingException);
         }
     }
 

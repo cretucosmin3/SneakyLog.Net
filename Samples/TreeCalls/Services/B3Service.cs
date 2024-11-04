@@ -11,6 +11,8 @@ public class B3Service : IB3Service
 {
     public async Task B3Call1()
     {
+        await Task.Delay(1550);
+
         try
         {
             var tasks = new[]
@@ -20,21 +22,18 @@ public class B3Service : IB3Service
                 Task.Run(() => throw new ApplicationException("Third error"))
             };
 
-            // Use Wait() instead of await to preserve the AggregateException
             Task.WhenAll(tasks).Wait();
         }
         catch (AggregateException ex)
         {
-            // Re-throw the AggregateException directly without it being unwrapped
             throw ex;
         }
-
-        // await Task.Delay(1);
     }
 
     public async Task B3Call2()
     {
-        throw new System.Exception("Just testing...");
+        string? text = null;
+        int x = text.Length;
         // throw new System.Exception("Just testing...");
     }
 }

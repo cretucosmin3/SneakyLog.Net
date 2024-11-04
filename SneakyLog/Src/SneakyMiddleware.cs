@@ -23,12 +23,10 @@ public class SneakyMiddleware
         string correlationId = correlationIds.FirstOrDefault() ?? Guid.NewGuid().ToString();
         SneakyLogContext.SetRequestIdentifier(correlationId);
 
-        // Get the endpoint for better method naming
         var endpoint = context.GetEndpoint();
         var controllerActionDescriptor = endpoint?.Metadata.GetMetadata<ControllerActionDescriptor>();
         
         string methodName = "Unknown Endpoint";
-
         if (controllerActionDescriptor != null)
         {
             methodName = $"{controllerActionDescriptor.ControllerName}Controller.{controllerActionDescriptor.ActionName}";
@@ -48,8 +46,7 @@ public class SneakyMiddleware
         }
         catch (Exception ex)
         {
-            trace.SetException(ex);
-            string traceOutput = SneakyLogContext.GetTrace();
+            string traceOutput = SneakyLogContext.GetTrace(ex.InnerException);
             _logger.LogError("Endpoint errored with trace: {TraceOutput}", traceOutput);
             throw;
         }
