@@ -194,8 +194,8 @@ public static class SneakyLogContext
             bool isBreakingException = call.Exception == breakingException;
 
             if (isBreakingException)
-                sb.Append(" 🔴");
-            else //🔴⭕❌🛑
+                sb.Append(" ❌");
+            else
                 sb.Append(" ⭕");
 
             if (call.Exception is AggregateException aggEx && aggEx.InnerExceptions.Count > 1)
@@ -206,7 +206,7 @@ public static class SneakyLogContext
                 {
                     sb.AppendLine();
                     sb.Append(new string(' ', (depth + 2) * 2));
-                    sb.Append($"➡ {GetErrorLineNumber(error)} - {error.GetType().Name}: {error.Message}");
+                    sb.Append($"- {GetErrorLineNumber(error)} ⚠️  {error.GetType().Name}: {error.Message}");
                 }
             }
             else

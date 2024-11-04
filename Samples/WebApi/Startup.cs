@@ -12,9 +12,10 @@ public class Startup
     public void ConfigureServices(IServiceCollection services)
     {
         services.AddControllers();
-        services.AddSneakyLog();
+        // services.AddSneakyLog();
 
-        AddLogicalServices(services);
+        // AddLogicalServices(services);
+        RegisterNormalServices(services);
     }
 
     public void AddLogicalServices(IServiceCollection services)
@@ -46,7 +47,7 @@ public class Startup
         }
 
         app.UseRouting();
-        app.UseSneakyTracing();
+        // app.UseSneakyTracing();
 
         app.UseEndpoints(endpoints =>
         {

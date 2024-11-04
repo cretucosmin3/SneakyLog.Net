@@ -14,6 +14,8 @@ public class HatsRepository : IHatsRepository
 
         var hats = TestingData.Hats.Where(hat => hat.PersonId.Equals(personId)).ToArray();
 
+        throw new System.Exception("Just testing...");
+
         return (hats.Length > 0, hats);
     }
 }
