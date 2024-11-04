@@ -25,11 +25,9 @@ public class SneakyInterceptor : IInterceptor
         }
         catch (Exception ex)
         {
-            // Unwrap aggregate exceptions
             var innerException = ex is AggregateException aggEx ? aggEx.InnerExceptions.FirstOrDefault() ?? ex : ex;
             trace.SetException(innerException);
 
-            // HandleThrownException(ex, trace);
             throw;
         }
     }
@@ -42,37 +40,18 @@ public class SneakyInterceptor : IInterceptor
             {
                 if (t.IsFaulted)
                 {
-                    HandleThrownException(t.Exception, trace);
+                    var exception = t.Exception?.InnerExceptions.FirstOrDefault() ?? t.Exception;
+                    trace.SetException(exception ?? new Exception("Unknown async error"));
                 }
                 else if (t.GetType().IsGenericType)
                 {
                     HandleTaskResult(t, trace);
                 }
+                else
+                {
+                    trace.SetResult("void");
+                }
             }, TaskScheduler.Current);
-        }
-    }
-
-    private void HandleThrownException(Exception? exception, SneakyLogContext.MethodTracer trace)
-    {
-        if (exception == null)
-        {
-            trace.SetException(new Exception("Unknown async error"));
-            return;
-        }
-
-        if (exception is AggregateException aggEx)
-        {
-            // TODO: trace multiple exceptions thrown at once
-            // foreach (var innerEx in aggEx.InnerExceptions)
-            // {
-            //     trace.AddError(innerEx);
-            // }
-
-            trace.SetException(aggEx.InnerExceptions.First());
-        }
-        else
-        {
-            trace.SetException(exception);
         }
     }
 
@@ -81,11 +60,12 @@ public class SneakyInterceptor : IInterceptor
         try
         {
             var resultProperty = task.GetType().GetProperty("Result");
-            trace.SetResult(resultProperty?.GetValue(task) != null ? "{...}" : "null");
+            var result = resultProperty?.GetValue(task);
+            trace.SetResult(result != null ? "{...}" : "null");
         }
         catch (Exception ex)
         {
-            HandleThrownException(ex.InnerException ?? ex, trace);
+            trace.SetException(ex.InnerException ?? ex);
         }
     }
 

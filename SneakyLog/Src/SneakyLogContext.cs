@@ -194,17 +194,32 @@ public static class SneakyLogContext
             sb.Append($" ({duration:F2}ms)");
         }
 
-        if (call.Exception != null)
+        // Only show exceptions for leaf nodes (methods that threw the exception)
+        if (call.Exception != null && call.Children.Count == 0)
         {
-            // Use consistent error format
-            sb.Append($" ❌ ERR: {call.Exception.GetType().Name}: {call.Exception.Message}");
+            if (call.Exception is AggregateException aggEx && aggEx.InnerExceptions.Count > 1)
+            {
+                // Add the main error indicator
+                sb.Append(" ❌ Multiple Errors:");
+
+                // Add each error on a new line with proper indentation
+                foreach (var error in aggEx.InnerExceptions)
+                {
+                    sb.AppendLine();
+                    sb.Append(new string(' ', (depth + 2) * 2));
+                    sb.Append($"→ {GetErrorLineNumber(error)} - {error.GetType().Name}: {error.Message}");
+                }
+            }
+            else
+            {
+                sb.Append($" ❌ {GetErrorLineNumber(call.Exception)} - {call.Exception.GetType().Name}: {call.Exception.Message}");
+            }
         }
         else if (call.Result != null)
         {
             sb.Append($" => {call.Result}");
         }
 
-        // Process children with proper locking
         List<MethodCall> children;
         lock (call.Children)
         {
@@ -215,6 +230,26 @@ public static class SneakyLogContext
         {
             BuildTraceString(child, sb, depth + 1);
         }
+    }
+
+    private static string GetErrorLineNumber(Exception ex)
+    {
+        try
+        {
+            var stackTrace = new StackTrace(ex, true);
+            var frame = stackTrace.GetFrames()?.FirstOrDefault();
+
+            if (frame != null)
+            {
+                var fileName = Path.GetFileName(frame.GetFileName() ?? "Unknown");
+                return $"{fileName}:{frame.GetFileLineNumber()}";
+            }
+        }
+        catch
+        {
+            // If anything goes wrong getting the line number, ignore it
+        }
+        return "line unknown";
     }
 
     internal class MethodTracer : IDisposable
@@ -238,7 +273,6 @@ public static class SneakyLogContext
         {
             lock (_lock)
             {
-                // Restore context before setting result
                 Context.Value = new AsyncContext
                 {
                     CurrentMethodId = _methodId,
@@ -258,7 +292,6 @@ public static class SneakyLogContext
         {
             lock (_lock)
             {
-                // Restore context before setting exception
                 Context.Value = new AsyncContext
                 {
                     CurrentMethodId = _methodId,
@@ -280,7 +313,6 @@ public static class SneakyLogContext
             {
                 if (_disposed) return;
 
-                // Restore context before completing
                 Context.Value = new AsyncContext
                 {
                     CurrentMethodId = _methodId,
@@ -289,7 +321,10 @@ public static class SneakyLogContext
 
                 if (ActiveCalls.TryGetValue(_methodId, out var call))
                 {
-                    call.Complete();
+                    if (!call.EndTime.HasValue)
+                    {
+                        call.Complete();
+                    }
                 }
 
                 _onDispose();

@@ -22,12 +22,19 @@ public class B1Service : IB1Service
         _b2Service.B2Call1().Wait();
         _b2Service.B2Call2().Wait();
 
-        Task.WaitAll(_b3Service.B3Call1(), _b3Service.B3Call2(), _b2Service.B2Call1());
+
+        try
+        {
+            Task.WaitAll(_b3Service.B3Call1(), _b3Service.B3Call2(), _b2Service.B2Call1());    
+        }
+        catch (System.Exception)
+        {
+            
+        }
     }
 
     public void B1Call2()
     {
-        throw new System.Exception("Just testing...");
         _b3Service.B3Call2().Wait();
         _b3Service.B3Call2().Wait();
         _b3Service.B3Call2().Wait();
