@@ -4,13 +4,13 @@ using Microsoft.Extensions.Logging;
 
 namespace SneakyLog;
 
-public class SneakyMiddleware
+public class SneakyTracker
 {
     private readonly RequestDelegate _next;
-    private readonly ILogger<SneakyMiddleware> _logger;
+    private readonly ILogger<SneakyTracker> _logger;
     private readonly bool _isInformationEnabled;
 
-    public SneakyMiddleware(RequestDelegate next, ILogger<SneakyMiddleware> logger)
+    public SneakyTracker(RequestDelegate next, ILogger<SneakyTracker> logger)
     {
         _next = next;
         _logger = logger;

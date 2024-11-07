@@ -44,7 +44,6 @@ public static class SneakyLogContext
     private static readonly ConcurrentDictionary<string, MethodCall> ActiveCalls = new();
     private static readonly ConcurrentDictionary<string, List<MethodCall>> RequestCalls = new();
 
-    // Helper property that creates context if it doesn't exist
     private static AsyncContext CurrentContext
     {
         get
@@ -59,68 +58,17 @@ public static class SneakyLogContext
         if (string.IsNullOrWhiteSpace(requestId))
             throw new ArgumentException("Request id cannot be null or empty", nameof(requestId));
 
+        // Clean up existing request if present
+        if (CurrentContext.RequestId != null && CurrentContext.RequestId != requestId)
+        {
+            EndTrace();
+        }
+
         CurrentContext.RequestId = requestId;
         RequestCalls.TryAdd(requestId, new List<MethodCall>());
     }
 
-    internal static MethodTracer TraceMethod(string methodName)
-    {
-        string? parentId = CurrentContext.CurrentMethodId;
-        MethodCall methodCall = new(methodName, parentId);
-
-        // Store the call
-        ActiveCalls.TryAdd(methodCall.Id, methodCall);
-
-        // If we have a parent, add this as a child
-        if (!string.IsNullOrEmpty(parentId) && ActiveCalls.TryGetValue(parentId, out var parentCall))
-        {
-            lock (parentCall.Children)
-            {
-                parentCall.Children.Add(methodCall);
-            }
-        }
-        else if (CurrentContext.RequestId != null)
-        {
-            // This is a root call
-            if (RequestCalls.TryGetValue(CurrentContext.RequestId, out var requestCalls))
-            {
-                lock (requestCalls)
-                {
-                    requestCalls.Add(methodCall);
-                }
-            }
-        }
-
-        // Set this as the current method
-        CurrentContext.CurrentMethodId = methodCall.Id;
-
-        return new MethodTracer(
-            methodCall.Id,
-            parentId,
-            CurrentContext.RequestId,
-            () => RestoreContext(parentId));
-    }
-
-    private static void RestoreContext(string? parentId)
-    {
-        CurrentContext.CurrentMethodId = parentId;
-    }
-
-    private static void CleanupMethodCallTree(MethodCall call)
-    {
-        lock (call.Children)
-        {
-            foreach (var child in call.Children)
-            {
-                CleanupMethodCallTree(child);
-            }
-        }
-
-        // Remove this call from ActiveCalls
-        ActiveCalls.TryRemove(call.Id, out _);
-    }
-
-    public static string GetTrace(Exception? breakingException = null)
+        public static string GetTrace(Exception? breakingException = null)
     {
         var requestId = CurrentContext.RequestId;
 
@@ -128,6 +76,7 @@ public static class SneakyLogContext
             return "No trace";
 
         var sb = new StringBuilder();
+
         lock (calls)
         {
             var rootCalls = calls.OrderBy(c => c.StartTime).ToList();
@@ -161,11 +110,31 @@ public static class SneakyLogContext
                     }
                 }
             }
+
             RequestCalls.TryRemove(requestId, out _);
         }
 
         // Clear the context
         Context.Value = null;
+    }
+
+    private static void RestoreContext(string? parentId)
+    {
+        CurrentContext.CurrentMethodId = parentId;
+    }
+
+    private static void CleanupMethodCallTree(MethodCall call)
+    {
+        lock (call.Children)
+        {
+            foreach (var child in call.Children)
+            {
+                CleanupMethodCallTree(child);
+            }
+        }
+
+        // Remove this call from ActiveCalls
+        ActiveCalls.TryRemove(call.Id, out _);
     }
 
     private static void BuildTraceString(MethodCall call, StringBuilder sb, int depth, Exception? breakingException)
@@ -246,11 +215,49 @@ public static class SneakyLogContext
                 return $"{fileName}:{frame.GetFileLineNumber()}";
             }
         }
-        catch
+        finally
         {
-            // If anything goes wrong getting the line number, ignore it
         }
+
         return "line unknown";
+    }
+
+    internal static MethodTracer TraceMethod(string methodName)
+    {
+        string? parentId = CurrentContext.CurrentMethodId;
+        MethodCall methodCall = new(methodName, parentId);
+
+        // Store the call
+        ActiveCalls.TryAdd(methodCall.Id, methodCall);
+
+        // If we have a parent, add this as a child
+        if (!string.IsNullOrEmpty(parentId) && ActiveCalls.TryGetValue(parentId, out var parentCall))
+        {
+            lock (parentCall.Children)
+            {
+                parentCall.Children.Add(methodCall);
+            }
+        }
+        else if (CurrentContext.RequestId != null)
+        {
+            // This is a root call
+            if (RequestCalls.TryGetValue(CurrentContext.RequestId, out var requestCalls))
+            {
+                lock (requestCalls)
+                {
+                    requestCalls.Add(methodCall);
+                }
+            }
+        }
+
+        // Set this as the current method
+        CurrentContext.CurrentMethodId = methodCall.Id;
+
+        return new MethodTracer(
+            methodCall.Id,
+            parentId,
+            CurrentContext.RequestId,
+            () => RestoreContext(parentId));
     }
 
     internal class MethodTracer : IDisposable
@@ -270,42 +277,47 @@ public static class SneakyLogContext
             _onDispose = onDispose;
         }
 
-        public void SetResult(string? result)
+        private void RestoreMethodContext(Action action)
         {
             lock (_lock)
             {
-                Context.Value = new AsyncContext
+                try
                 {
-                    CurrentMethodId = _methodId,
-                    RequestId = _requestId
-                };
+                    Context.Value = new AsyncContext
+                    {
+                        CurrentMethodId = _methodId,
+                        RequestId = _requestId
+                    };
 
+                    action();
+                }
+                finally
+                {
+                    RestoreContext(_parentId);
+                }
+            }
+        }
+
+        public void SetResult(string? result)
+        {
+            RestoreMethodContext(() =>
+            {
                 if (ActiveCalls.TryGetValue(_methodId, out var call))
                 {
                     call.Complete(result);
                 }
-
-                RestoreContext(_parentId);
-            }
+            });
         }
 
         public void SetException(Exception ex)
         {
-            lock (_lock)
+            RestoreMethodContext(() =>
             {
-                Context.Value = new AsyncContext
-                {
-                    CurrentMethodId = _methodId,
-                    RequestId = _requestId
-                };
-
                 if (ActiveCalls.TryGetValue(_methodId, out var call))
                 {
                     call.Complete(exception: ex);
                 }
-
-                RestoreContext(_parentId);
-            }
+            });
         }
 
         public void Dispose()
