@@ -15,7 +15,11 @@ public class Startup
 
         if (UsingSneaky)
         {
-            services.AddSneakyLog();
+            services.AddSneakyLog(new() {
+                LogDebugTrace = false,
+                UseEmojis = false
+            });
+
             AddLogicalServices(services);
         }
         else

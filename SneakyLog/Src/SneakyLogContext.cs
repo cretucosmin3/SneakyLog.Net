@@ -34,6 +34,8 @@ public class MethodCall
 
 public static class SneakyLogContext
 {
+    internal static SneakyLogConfig Config { get; private set; } = new();
+
     private class AsyncContext
     {
         public string? CurrentMethodId { get; set; }
@@ -53,6 +55,11 @@ public static class SneakyLogContext
         }
     }
 
+    internal static void SetConfig(SneakyLogConfig config)
+    {
+        Config = config;
+    }
+
     public static void SetRequestIdentifier(string requestId)
     {
         if (string.IsNullOrWhiteSpace(requestId))
@@ -68,7 +75,7 @@ public static class SneakyLogContext
         RequestCalls.TryAdd(requestId, new List<MethodCall>());
     }
 
-        public static string GetTrace(Exception? breakingException = null)
+    public static string GetTrace(Exception? breakingException = null)
     {
         var requestId = CurrentContext.RequestId;
 
@@ -168,10 +175,13 @@ public static class SneakyLogContext
         {
             bool isBreakingException = call.Exception == breakingException;
 
-            if (isBreakingException)
-                sb.Append(" ❌");
-            else
-                sb.Append(" ⭕");
+            if (Config.UseEmojis)
+            {
+                if (isBreakingException)
+                    sb.Append(" ❌");
+                else
+                    sb.Append(" ⭕");
+            }
 
             if (call.Exception is AggregateException aggEx && aggEx.InnerExceptions.Count > 1)
             {
@@ -181,7 +191,11 @@ public static class SneakyLogContext
                 {
                     sb.AppendLine();
                     sb.Append(new string(' ', (depth + 2) * 2));
-                    sb.Append($"- {GetErrorLineNumber(error)} ⚠️  {error.GetType().Name}: {error.Message}");
+
+                    if(Config.UseEmojis)
+                        sb.Append("⚠️ ");
+
+                    sb.Append($" {GetErrorLineNumber(error)} - {error.GetType().Name}: {error.Message}");
                 }
             }
             else
