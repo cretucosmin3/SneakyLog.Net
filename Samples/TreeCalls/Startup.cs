@@ -16,17 +16,17 @@ public class Startup
         if (UsingSneaky)
         {
             services.AddSneakyLog(new() {
-                LogDebugTracw = false,
+                LogDebugTrace = false,
                 UseEmojis = true
             });
 
-            AddLogicalSerbices(services);
+            AddLogicalServices(services);
         }
         else
             AddLogicalServicesNormal(services);
     }
 
-    public void AddLogicalSerbices(IServiceCollection services)
+    public void AddLogicalServices(IServiceCollection services)
     {
         services.AddProxiedScoped(typeof(IAService), typeof(AService));
         services.AddProxiedScoped(typeof(IA1Service), typeof(A1Service));
