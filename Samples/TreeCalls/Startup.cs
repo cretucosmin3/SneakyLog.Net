@@ -17,7 +17,7 @@ public class Startup
         {
             services.AddSneakyLog(new() {
                 LogDebugTrace = false,
-                UseEmojis = false
+                UseEmojis = true
             });
 
             AddLogicalServices(services);
