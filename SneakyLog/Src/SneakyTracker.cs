@@ -8,13 +8,11 @@ public class SneakyTracker
 {
     private readonly RequestDelegate _next;
     private readonly ILogger<SneakyTracker> _logger;
-    private readonly bool _isDebugLoggingEnabled;
 
     public SneakyTracker(RequestDelegate next, ILogger<SneakyTracker> logger)
     {
         _next = next;
         _logger = logger;
-        _isDebugLoggingEnabled = logger.IsEnabled(LogLevel.Debug);
     }
 
     public async Task InvokeAsync(HttpContext context)
@@ -38,7 +36,7 @@ public class SneakyTracker
         {
             await _next.Invoke(context);
 
-            if (_isDebugLoggingEnabled)
+            if (SneakyLogContext.Config.LogDebugTrace)
             {
                 string traceOutput = SneakyLogContext.GetTrace();
                 _logger.LogDebug("Request completed with trace: {traceOutput}", traceOutput);

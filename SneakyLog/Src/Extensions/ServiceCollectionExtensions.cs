@@ -9,6 +9,9 @@ public static class ServiceCollectionExtensions
 {
     public static void AddSneakyLog(this IServiceCollection services, SneakyLogConfig? config = null)
     {
+        if (config != null)
+            SneakyLogContext.SetConfig(config);
+
         services.AddSingleton(new ProxyGenerator());
         services.AddScoped<SneakyInterceptor>();
         services.AddScoped<Microsoft.AspNetCore.HttpLogging.HttpLoggingInterceptorContext>();
