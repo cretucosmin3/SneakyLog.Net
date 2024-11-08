@@ -125,12 +125,16 @@ public static class SneakyLogContext
 
     private static void CleanupMethodCallTree(MethodCall call)
     {
+        List<MethodCall> childrenCopy;
+
         lock (call.Children)
         {
-            foreach (var child in call.Children)
-            {
-                CleanupMethodCallTree(child);
-            }
+            childrenCopy = new List<MethodCall>(call.Children);
+        }
+
+        foreach (var child in childrenCopy)
+        {
+            CleanupMethodCallTree(child);
         }
 
         // Remove this call from ActiveCalls
