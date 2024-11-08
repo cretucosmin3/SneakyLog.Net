@@ -1,3 +1,4 @@
+using System;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
@@ -16,7 +17,7 @@ public class TestingController : ControllerBase
     }
 
     [HttpGet]
-    public async Task<IActionResult> GetPerson()
+    public async Task<IActionResult> TreeTesting()
     {
         _aService.ACall1().Wait();
         _bService.BCall1();

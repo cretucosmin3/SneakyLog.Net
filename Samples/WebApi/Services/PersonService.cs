@@ -28,19 +28,12 @@ public class PersonService : IPersonService
 
         if (person != null)
         {
-            try
-            {
-                var findHats = _hatsRepo.TryFindHats(person.Id);
-                var findCars = _carsRepo.TryFindCars(person.Id);
-                Task.WaitAll([findHats, findCars]);
-                person.Hats = findHats.Result.Item2;
-                person.Cars = findCars.Result.Item2;
-            }
-            catch (System.Exception)
-            {
-                string trace = ProxyLogContext.GetTrace();
-                Console.WriteLine($"Endpoint finished with trace: {trace}");
-            }
+            var findHats = _hatsRepo.TryFindHats(person.Id);
+            var findCars = _carsRepo.TryFindCars(person.Id);
+            Task.WaitAll([findHats, findCars]);
+            
+            person.Hats = findHats.Result.Item2;
+            person.Cars = findCars.Result.Item2;
         }
 
         return person;

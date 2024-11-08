@@ -1,21 +1,25 @@
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Logging.Console;
 using SneakyLog.Extensions;
 
 public class Startup
 {
+    private readonly bool UsingSneaky = true;
+
     public void ConfigureServices(IServiceCollection services)
     {
         services.AddControllers();
-        services.AddSneakyLog();
 
-        AddLogicalServices(services);
-        // AddLogicalServicesNormal(services);
+        if (UsingSneaky)
+        {
+            services.AddSneakyLog();
+            AddLogicalServices(services);
+        }
+        else
+            AddLogicalServicesNormal(services);
     }
 
     public void AddLogicalServices(IServiceCollection services)
@@ -46,7 +50,9 @@ public class Startup
         }
 
         app.UseRouting();
-        app.UseSneakyTracing();
+
+        if (UsingSneaky)
+            app.UseSneakyTracing();
 
         app.UseEndpoints(endpoints =>
         {

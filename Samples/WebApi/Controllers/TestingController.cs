@@ -13,8 +13,8 @@ public class TestingController : ControllerBase
         _personService = personService;
     }
 
-    [HttpGet("person/{personName}")]
-    public async Task<IActionResult> GetPerson([FromRoute] string personName)
+    [HttpGet]
+    public async Task<IActionResult> GetPerson([FromRoute] string personName = "bob")
     {
         Person? result = await _personService.FindPersonByName(personName);
 

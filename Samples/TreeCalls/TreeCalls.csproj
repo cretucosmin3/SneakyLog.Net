@@ -5,13 +5,16 @@
 		<ImplicitUsings>\enable</ImplicitUsings>
 		<Nullable>enable</Nullable>
 	</PropertyGroup>
+    <ItemGroup>
+        <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    </ItemGroup>
 	<ItemGroup>
 		<PackageReference Include="Castle.Core" Version="5.1.1" />
-		<PackageReference Include="Microsoft.AspNetCore.App" Version="2.2.8" />
 		<PackageReference Include="Microsoft.Extensions.Logging" Version="8.0.1" />
 		<PackageReference Include="Microsoft.Extensions.Logging.Console" Version="8.0.1" />
 		<PackageReference Include="Microsoft.Extensions.Logging.Debug" Version="8.0.1" />
 	</ItemGroup>
+    
 	<ItemGroup>
 		<ProjectReference Include="../../SneakyLog/SneakyLogNet.csproj" />
 	</ItemGroup>

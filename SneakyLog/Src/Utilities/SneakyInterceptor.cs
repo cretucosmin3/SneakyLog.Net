@@ -7,7 +7,7 @@ public class SneakyInterceptor : IInterceptor
     public void Intercept(IInvocation invocation)
     {
         var methodName = $"{invocation.TargetType.Name}.{invocation.Method.Name}";
-        using var trace = ProxyLogContext.TraceMethod(methodName);
+        using var trace = SneakyLogContext.TraceMethod(methodName);
 
         try
         {
@@ -19,19 +19,20 @@ public class SneakyInterceptor : IInterceptor
             }
             else
             {
-                // var result = invocation.ReturnValue != null ? JsonSerializer.Serialize(invocation.ReturnValue) : "null";
                 var result = invocation.ReturnValue != null ? "{...}" : "null";
                 trace.SetResult(result);
             }
         }
         catch (Exception ex)
         {
-            trace.SetException(ex);
+            var innerException = ex is AggregateException aggEx ? aggEx.InnerExceptions.FirstOrDefault() ?? ex : ex;
+            trace.SetException(innerException);
+
             throw;
         }
     }
 
-    private void HandleAsyncMethod(IInvocation invocation, ProxyLogContext.MethodTracer trace)
+    private void HandleAsyncMethod(IInvocation invocation, SneakyLogContext.MethodTracer trace)
     {
         if (invocation.ReturnValue is Task task)
         {
@@ -39,18 +40,32 @@ public class SneakyInterceptor : IInterceptor
             {
                 if (t.IsFaulted)
                 {
-                    var exception = t.Exception?.InnerException ?? t.Exception;
+                    var exception = t.Exception?.InnerExceptions.FirstOrDefault() ?? t.Exception;
                     trace.SetException(exception ?? new Exception("Unknown async error"));
                 }
                 else if (t.GetType().IsGenericType)
                 {
-                    var resultProperty = t.GetType().GetProperty("Result");
-                    var taskResult = resultProperty?.GetValue(t);
-                    // var result = taskResult != null ? JsonSerializer.Serialize(taskResult) : "null";
-                    var result = invocation.ReturnValue != null ? "{...}" : "null";
-                    trace.SetResult(result);
+                    HandleTaskResult(t, trace);
+                }
+                else
+                {
+                    trace.SetResult("void");
                 }
             }, TaskScheduler.Current);
+        }
+    }
+
+    private void HandleTaskResult(Task task, SneakyLogContext.MethodTracer trace)
+    {
+        try
+        {
+            var resultProperty = task.GetType().GetProperty("Result");
+            var result = resultProperty?.GetValue(task);
+            trace.SetResult(result != null ? "{...}" : "null");
+        }
+        catch (Exception ex)
+        {
+            trace.SetException(ex.InnerException ?? ex);
         }
     }
 

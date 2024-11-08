@@ -9,17 +9,21 @@ using SneakyLog.Extensions;
 
 public class Startup
 {
+    private readonly bool UsingSneakyLog = true;
+
     public void ConfigureServices(IServiceCollection services)
     {
         services.AddControllers();
-        services.AddSneakyLog();
 
-        AddLogicalServices(services);
-    }
-
-    public void AddLogicalServices(IServiceCollection services)
-    {
-        RegisterProxiedServices(services);
+        if (UsingSneakyLog)
+        {
+            services.AddSneakyLog();
+            RegisterProxiedServices(services);
+        }
+        else
+        {
+            RegisterNormalServices(services);
+        }
     }
 
     private void RegisterProxiedServices(IServiceCollection services)
@@ -46,7 +50,9 @@ public class Startup
         }
 
         app.UseRouting();
-        app.UseSneakyTracing();
+
+        if (UsingSneakyLog)
+            app.UseSneakyTracing();
 
         app.UseEndpoints(endpoints =>
         {

@@ -22,14 +22,13 @@ public class B1Service : IB1Service
         _b2Service.B2Call1().Wait();
         _b2Service.B2Call2().Wait();
 
-        Task.WaitAll(_b3Service.B3Call1(), _b3Service.B3Call2(), _b2Service.B2Call1());
+        Task.WaitAll(_b3Service.B3Call2(), _b3Service.B3Call1(), _b2Service.B2Call1());
     }
 
     public void B1Call2()
     {
-        for (int i = 0; i < 500; i++)
-        {
-            _b3Service.B3Call2().Wait();
-        }
+        _b3Service.B3Call2().Wait();
+        _b3Service.B3Call2().Wait();
+        _b3Service.B3Call2().Wait();
     }
 }

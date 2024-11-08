@@ -6,6 +6,6 @@ public static class RequestIdMiddlewareExtensions
 {
     public static IApplicationBuilder UseSneakyTracing(this IApplicationBuilder builder)
     {
-        return builder.UseMiddleware<SneakyMiddleware>();
+        return builder.UseMiddleware<SneakyTracker>();
     }
 }
