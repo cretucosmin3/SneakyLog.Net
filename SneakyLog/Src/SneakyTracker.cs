@@ -8,13 +8,13 @@ public class SneakyTracker
 {
     private readonly RequestDelegate _next;
     private readonly ILogger<SneakyTracker> _logger;
-    private readonly bool _isInformationEnabled;
+    private readonly bool _isDebugLoggingEnabled;
 
     public SneakyTracker(RequestDelegate next, ILogger<SneakyTracker> logger)
     {
         _next = next;
         _logger = logger;
-        _isInformationEnabled = logger.IsEnabled(LogLevel.Information);
+        _isDebugLoggingEnabled = logger.IsEnabled(LogLevel.Debug);
     }
 
     public async Task InvokeAsync(HttpContext context)
@@ -29,7 +29,7 @@ public class SneakyTracker
         string methodName = "Unknown Endpoint";
         if (controllerActionDescriptor != null)
         {
-            methodName = $"{controllerActionDescriptor.ControllerName}Controller.{controllerActionDescriptor.ActionName}";
+            methodName = $"{controllerActionDescriptor.DisplayName}";
         }
 
         using var trace = SneakyLogContext.TraceMethod(methodName);
@@ -38,7 +38,7 @@ public class SneakyTracker
         {
             await _next.Invoke(context);
 
-            if (_isInformationEnabled)
+            if (_isDebugLoggingEnabled)
             {
                 string traceOutput = SneakyLogContext.GetTrace();
                 _logger.LogDebug("Request completed with trace: {traceOutput}", traceOutput);
@@ -47,15 +47,12 @@ public class SneakyTracker
         catch (Exception ex)
         {
             string traceOutput = SneakyLogContext.GetTrace(ex.InnerException);
-            _logger.LogError("Endpoint errored with trace: {TraceOutput}", traceOutput);
+            _logger.LogError("Request errored with trace: {TraceOutput}", traceOutput);
             throw;
         }
         finally
         {
-            if (!context.RequestAborted.IsCancellationRequested)
-            {
-                SneakyLogContext.EndTrace();
-            }
+            SneakyLogContext.EndTrace();
         }
     }
 }
