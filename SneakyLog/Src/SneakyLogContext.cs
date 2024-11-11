@@ -1,49 +1,16 @@
 using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Text;
+using SneakyLog.Objects;
 
 namespace SneakyLog;
-
-public class MethodCall
-{
-    public string Id { get; } = Guid.NewGuid().ToString();
-    public string ParentId { get; }
-    public string MethodName { get; }
-    public long StartTime { get; }
-    public TimeSpan? EndTime { get; private set; }
-    public string? Result { get; private set; }
-    public Exception? Exception { get; private set; }
-    public int ThreadId { get; }
-    public List<MethodCall> Children { get; } = [];
-
-    public MethodCall(string methodName, string? parentId = null)
-    {
-        MethodName = methodName;
-        ParentId = parentId ?? "";
-        StartTime = Stopwatch.GetTimestamp();
-        ThreadId = Environment.CurrentManagedThreadId;
-    }
-
-    public void Complete(string? result = null, Exception? exception = null)
-    {
-        EndTime = Stopwatch.GetElapsedTime(StartTime);
-        Result = result;
-        Exception = exception;
-    }
-}
 
 public static class SneakyLogContext
 {
     internal static SneakyLogConfig Config { get; private set; } = new();
 
-    private class AsyncContext
-    {
-        public string? CurrentMethodId { get; set; }
-        public string? RequestId { get; set; }
-    }
-
-    private static readonly AsyncLocal<AsyncContext> Context = new(valueChangedHandler: null);
-    private static readonly ConcurrentDictionary<string, MethodCall> ActiveCalls = new();
+    internal static readonly AsyncLocal<AsyncContext> Context = new(valueChangedHandler: null);
+    internal static readonly ConcurrentDictionary<string, MethodCall> ActiveCalls = new();
     private static readonly ConcurrentDictionary<string, List<MethodCall>> RequestCalls = new();
 
     private static AsyncContext CurrentContext
@@ -125,7 +92,7 @@ public static class SneakyLogContext
         Context.Value = null;
     }
 
-    private static void RestoreContext(string? parentId)
+    internal static void RestoreContext(string? parentId)
     {
         CurrentContext.CurrentMethodId = parentId;
     }
@@ -276,91 +243,5 @@ public static class SneakyLogContext
             parentId,
             CurrentContext.RequestId,
             () => RestoreContext(parentId));
-    }
-
-    internal class MethodTracer : IDisposable
-    {
-        private readonly string _methodId;
-        private readonly string? _parentId;
-        private readonly string? _requestId;
-        private readonly Action _onDispose;
-        private bool _disposed;
-        private readonly object _lock = new object();
-
-        public MethodTracer(string methodId, string? parentId, string? requestId, Action onDispose)
-        {
-            _methodId = methodId;
-            _parentId = parentId;
-            _requestId = requestId;
-            _onDispose = onDispose;
-        }
-
-        private void RestoreMethodContext(Action action)
-        {
-            lock (_lock)
-            {
-                try
-                {
-                    Context.Value = new AsyncContext
-                    {
-                        CurrentMethodId = _methodId,
-                        RequestId = _requestId
-                    };
-
-                    action();
-                }
-                finally
-                {
-                    RestoreContext(_parentId);
-                }
-            }
-        }
-
-        public void SetResult(string? result)
-        {
-            RestoreMethodContext(() =>
-            {
-                if (ActiveCalls.TryGetValue(_methodId, out var call))
-                {
-                    call.Complete(result);
-                }
-            });
-        }
-
-        public void SetException(Exception ex)
-        {
-            RestoreMethodContext(() =>
-            {
-                if (ActiveCalls.TryGetValue(_methodId, out var call))
-                {
-                    call.Complete(exception: ex);
-                }
-            });
-        }
-
-        public void Dispose()
-        {
-            lock (_lock)
-            {
-                if (_disposed) return;
-
-                Context.Value = new AsyncContext
-                {
-                    CurrentMethodId = _methodId,
-                    RequestId = _requestId
-                };
-
-                if (ActiveCalls.TryGetValue(_methodId, out var call))
-                {
-                    if (!call.EndTime.HasValue)
-                    {
-                        call.Complete();
-                    }
-                }
-
-                _onDispose();
-                _disposed = true;
-            }
-        }
     }
 }

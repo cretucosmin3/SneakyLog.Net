@@ -1,4 +1,5 @@
 using Castle.DynamicProxy;
+using SneakyLog.Objects;
 
 namespace SneakyLog.Utilities;
 
@@ -32,7 +33,7 @@ public class SneakyInterceptor : IInterceptor
         }
     }
 
-    private void HandleAsyncMethod(IInvocation invocation, SneakyLogContext.MethodTracer trace)
+    private void HandleAsyncMethod(IInvocation invocation, MethodTracer trace)
     {
         if (invocation.ReturnValue is Task task)
         {
@@ -55,7 +56,7 @@ public class SneakyInterceptor : IInterceptor
         }
     }
 
-    private void HandleTaskResult(Task task, SneakyLogContext.MethodTracer trace)
+    private void HandleTaskResult(Task task, MethodTracer trace)
     {
         try
         {
