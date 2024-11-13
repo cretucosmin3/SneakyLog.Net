@@ -54,20 +54,20 @@ Having these on one line would make it quite long and hard to read.
 
 ```json
 - Example.Endpoint (7.89ms)
-    - Example.Method (4.23ms) (123) >> {...}
-      - Example.Method (0.01ms) >> true
-      - Example.Method (0.00ms) (..) >> {...}
-      - Example.Method (2.26ms)
-          >> personId: 123, includeEmail: true
-          << {"id":123,"email":"john@example.com"}
-    - Example.Method (3.50ms)
-      - Example.Method (3.46ms)
-        - Example.Method (1.10ms) () >> {...}
-        - Example.Method (1.16ms)
+  - Example.Method (4.23ms) (123) >> {...}
+    - Example.Method (0.01ms) >> true
+    - Example.Method (0.00ms) (..) >> {...}
+    - Example.Method (2.26ms)
+            >> personId: 123, includeEmail: true
             << {"id":123,"email":"john@example.com"}
+  - Example.Method (3.50ms)
+    - Example.Method (3.46ms)
+      - Example.Method (1.10ms) () >> {...}
+      - Example.Method (1.16ms)
+              << {"id":123,"email":"john@example.com"}
         - Example.Method (1.13ms)
-            >> 123
-            << {"id":123,"email":"john@example.com"}
+                >> 123
+                << {"id":123,"email":"john@example.com"}
         - Example.Method (0.04ms) ❌ B3Service.cs:37 - Exception: Just testing...
-        - Example.Method (1.08ms) () >> {...}
+            - Example.Method (1.08ms) () >> {...}
 ```
