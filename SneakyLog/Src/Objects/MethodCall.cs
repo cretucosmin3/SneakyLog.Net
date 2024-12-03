@@ -14,13 +14,18 @@ public class MethodCall
 
     public List<ParameterInfo> Parameters { get; } = [];
     public object? ReturnValue { get; private set; }
+
     public Exception? Exception { get; private set; }
-    
     public List<MethodCall> Children { get; } = [];
 
-    public MethodCall(string methodName, string? parentId = null)
+    public readonly bool HasParams = false;
+    public readonly bool HasReturn = false;
+
+    public MethodCall(string methodName, bool hasParams = false, bool hasReturn = false, string? parentId = null)
     {
         MethodName = methodName;
+        HasParams = hasParams;
+        HasReturn = hasReturn;
         ParentId = parentId ?? "";
         StartTime = Stopwatch.GetTimestamp();
         ThreadId = Environment.CurrentManagedThreadId;

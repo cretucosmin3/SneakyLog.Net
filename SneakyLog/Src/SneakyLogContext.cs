@@ -120,10 +120,10 @@ public static class SneakyLogContext
         ActiveCalls.TryRemove(call.Id, out _);
     }
 
-    internal static MethodTracer TraceMethod(string methodName)
+    internal static MethodTracer TraceMethod(string methodName, bool hasParams = false, bool isVoid = false)
     {
         string? parentId = CurrentContext.CurrentMethodId;
-        MethodCall methodCall = new(methodName, parentId);
+        MethodCall methodCall = new(methodName, hasParams, isVoid, parentId);
 
         // Store the call
         ActiveCalls.TryAdd(methodCall.Id, methodCall);

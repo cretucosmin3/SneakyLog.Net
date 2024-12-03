@@ -15,7 +15,11 @@ public class Startup
 
         if (UsingSneakyLog)
         {
-            services.AddSneakyLog();
+            services.AddSneakyLog(new()
+            {
+                LogDebugTrace = true,
+                UseEmojis = true
+            });
             RegisterProxiedServices(services);
         }
         else

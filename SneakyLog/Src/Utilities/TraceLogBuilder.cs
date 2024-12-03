@@ -1,5 +1,7 @@
 using System.Diagnostics;
+using System.Globalization;
 using System.Text;
+using System.Text.Json;
 using SneakyLog.Objects;
 
 namespace SneakyLog.Utilities;
@@ -8,6 +10,10 @@ internal class TraceLogBuilder
 {
     private readonly StringBuilder _builder = new();
     private readonly Exception? _breakingException;
+    private static readonly JsonSerializerOptions JsonOptions = new() 
+    { 
+        WriteIndented = false
+    };
 
     public TraceLogBuilder(Exception? breakingException)
     {
@@ -17,20 +23,19 @@ internal class TraceLogBuilder
     internal string BuildTraceString(MethodCall call, int depth)
     {
         AddIndentation(depth);
-
         _builder.Append(call.MethodName);
-
         LogMethodTime(call);
 
-        bool hasError = call.Exception != null;
+        bool hadErrors = call.Exception != null;
 
-        if (hasError)
+        if (hadErrors)
             LogErrors(call, depth);
+        else
+            LogMethodData(call, depth);
 
         List<MethodCall> children;
         lock (call.Children)
         {
-            // TODO: check performance of ordering child calls
             children = call.Children.OrderBy(c => c.StartTime).ToList();
         }
 
@@ -40,6 +45,64 @@ internal class TraceLogBuilder
         }
 
         return _builder.ToString();
+    }
+
+    private void LogMethodData(MethodCall call, int depth)
+    {
+        if (!SneakyLogContext.Config.DataTraceEnabled)
+            return;
+
+        var parameters = call.Parameters;
+        var returnValue = call.ReturnValue;
+
+        // Case 1: No parameters and no return
+        if (!parameters.Any() && call.HasReturn)
+        {
+            if (returnValue != null)
+                _builder.Append(" >> ").Append(TraceObjectSerializer.SerializeObject(returnValue));
+            return;
+        }
+
+        // Case 2: Single primitive parameter
+        if (parameters.Count == 1 && IsPrimitive(parameters[0].ParameterType))
+        {
+            _builder.Append($" ({TraceObjectSerializer.SerializeObject(parameters[0].Value)})");
+            if (returnValue != null)
+                _builder.Append($" >> {TraceObjectSerializer.SerializeObject(returnValue)}");
+            return;
+        }
+
+        // Case 3: Parameters with objects or multiple parameters
+        _builder.AppendLine();
+        AddIndentation(depth + 1);
+        _builder.Append(">> ");
+
+        var paramStrings = new List<string>();
+        foreach (var param in parameters)
+        {
+            string paramString;
+            if (param.IsOut)
+                paramString = $"[out {param.Name}]: {TraceObjectSerializer.SerializeObject(param.Value)}";
+            else
+                paramString = $"{param.Name}: {TraceObjectSerializer.SerializeObject(param.Value)}";
+
+            paramStrings.Add(paramString);
+        }
+
+        _builder.Append(string.Join(", ", paramStrings));
+
+        // Return value on new line if it's an object
+        if (returnValue != null)
+        {
+            if (IsPrimitive(returnValue.GetType()))
+                _builder.Append($" >> {TraceObjectSerializer.SerializeObject(returnValue)}");
+            else
+            {
+                _builder.AppendLine();
+                AddIndentation(depth + 1);
+                _builder.Append("<< ").Append(TraceObjectSerializer.SerializeObject(returnValue));
+            }
+        }
     }
 
     private void AddIndentation(int depth)
@@ -77,16 +140,36 @@ internal class TraceLogBuilder
             if (SneakyLogContext.Config.UseEmojis)
                 _builder.Append(isBreakingException ? " ❌" : " ⭕");
 
-            // Do we have multiple exceptions?
             if (call.Exception is AggregateException aggEx && aggEx.InnerExceptions.Count > 1)
                 LogMultipleThrownExceptions(aggEx, depth);
             else
                 LogOneError(call.Exception);
         }
-        else if (call.ReturnValue != null)
+
+        // Even with errors, we might want to log the parameters
+        LogMethodData(call, depth);
+    }
+
+    private static string FormatValue(object? value)
+    {
+        if (value == null)
+            return "null";
+
+        return value switch
         {
-            _builder.Append($" => {call.ReturnValue}");
-        }
+            string str => str,
+            DateTime dt => dt.ToString("O"),
+            IFormattable f => f.ToString(null, CultureInfo.InvariantCulture),
+            object obj when !IsPrimitive(obj.GetType()) => "{...}",
+            _ => value.ToString() ?? "null"
+        };
+    }
+
+    private static bool IsPrimitive(Type type)
+    {
+        return type.IsPrimitive || type == typeof(string) || type == typeof(decimal) 
+            || type == typeof(DateTime) || type == typeof(DateTimeOffset) 
+            || type == typeof(Guid) || type.IsEnum;
     }
 
     private void LogMultipleThrownExceptions(AggregateException aggEx, int depth)
@@ -127,8 +210,9 @@ internal class TraceLogBuilder
                 return $"{fileName}:{frame.GetFileLineNumber()}";
             }
         }
-        finally
+        catch
         {
+            // Ignore any errors in getting stack trace information
         }
 
         return "line unknown";

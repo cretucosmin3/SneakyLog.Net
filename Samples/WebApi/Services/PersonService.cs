@@ -1,6 +1,5 @@
-using System;
 using System.Threading.Tasks;
-using SneakyLog;
+using SneakyLog.Attributes;
 
 public interface IPersonService
 {
@@ -20,10 +19,11 @@ public class PersonService : IPersonService
         _carsRepo = carsRepo;
     }
 
+    [NoDataTrace]
     public async Task<Person?> FindPersonByName(string name)
     {
         (bool found, Person? person) = await _personRepo.TryFindPerson(name);
-
+        
         if (!found || person == null) return null;
 
         if (person != null)
@@ -35,6 +35,8 @@ public class PersonService : IPersonService
             person.Hats = findHats.Result.Item2;
             person.Cars = findCars.Result.Item2;
         }
+
+        throw new System.Exception("Nothing...");
 
         return person;
     }
