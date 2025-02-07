@@ -1,11 +1,13 @@
 using System.Linq;
 using System.Threading.Tasks;
+using SneakyLog.Utilities;
 
 public interface IHatsRepository
 {
     public Task<(bool,Hat[])> TryFindHats(int personId);
 }
 
+[SneakyLog]
 public class HatsRepository : IHatsRepository
 {
     public async Task<(bool, Hat[])> TryFindHats(int personId)

@@ -7,7 +7,7 @@ using SneakyLog.Extensions;
 
 public class Startup
 {
-    private readonly bool UsingSneakyLog = true;
+    private readonly bool UsingSneakyLog = false;
 
     public void ConfigureServices(IServiceCollection services)
     {
@@ -48,9 +48,7 @@ public class Startup
         }
 
         app.UseRouting();
-
-        if (UsingSneakyLog)
-            app.UseSneakyTracing();
+        app.UseSneakyTracing();
 
         app.UseEndpoints(endpoints =>
         {

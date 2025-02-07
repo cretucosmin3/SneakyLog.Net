@@ -1,6 +1,7 @@
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
+using SneakyLog.Utilities;
 
 [ApiController]
 [Route("[controller]")]
@@ -14,6 +15,7 @@ public class TestingController : ControllerBase
     }
 
     [HttpGet]
+    [SneakyLog]
     public async Task<IActionResult> GetPerson([FromRoute] string personName = "bob")
     {
         Person? result = await _personService.FindPersonByName(personName);
